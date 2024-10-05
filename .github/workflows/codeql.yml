@@ -1,0 +1,60 @@
+name: "CodeQL Analysis"
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+  schedule:
+    - cron: '0 0 * * 1' # Runs every Monday at 00:00 UTC
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: self-hosted
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript', 'go']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies and build React app
+      working-directory: ./ui
+      run: |
+        npm ci
+        npm run build
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23.2'
+  
+    - name: Tidy Go modules
+      working-directory: ./controller
+      run: go mod tidy
+    
+    - name: Build Go code
+      working-directory: ./controller
+      run: go build -o main ./cmd/controllerservice
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3

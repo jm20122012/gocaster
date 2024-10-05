@@ -1,0 +1,21 @@
+name: Go Lint
+
+on: [push, pull_request]
+
+jobs:
+  lint:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23.2'
+
+    - name: Run golangci-lint
+      run: |
+        cd controller
+        golangci-lint run --timeout=5m

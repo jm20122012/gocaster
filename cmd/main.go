@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/jm20122012/gocaster/internal/config"
+	"github.com/jm20122012/gocaster/internal/server"
 )
 
 var (
@@ -18,16 +22,40 @@ func main() {
 
 	logger.Debug("Loading config")
 
-	cfg, err := config.LoadConfig()
+	conf, err := config.LoadConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	logger.Debug("Config loaded", "config", cfg)
+	logger.Debug("Config loaded", "config", conf)
 
-	createLogger(cfg.DebugLevel)
+	createLogger(conf.DebugLevel)
 
 	logger.Info("Starting GoCaster server")
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		logger.Info("Ctrl+C pressed, cancelling context...")
+		cancel()
+	}()
+
+	s, err := server.NewServer(
+		ctx,
+		cancel,
+		logger,
+		conf,
+	)
+	if err != nil {
+		logger.Error("error creating gocaster server", "error", err)
+		cancel()
+	}
+
+	s.Start()
 
 }
 
